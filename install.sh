@@ -17,7 +17,6 @@ else
   echo "  Detected: Intel Mac"
 fi
 
-# Set your hosted URL here (update when you have real hosting)
 BASE_URL="https://github.com/azurashay/adept-releases/releases/latest/download"
 DMG_PATH="/tmp/$DMG_FILE"
 
@@ -25,21 +24,26 @@ echo "  Downloading $DMG_FILE..."
 curl -fL "$BASE_URL/$DMG_FILE" -o "$DMG_PATH"
 
 echo "  Mounting installer..."
-MOUNT_DIR=$(hdiutil attach "$DMG_PATH" -nobrowse -quiet | tail -1 | awk '{print $3}')
+MOUNT_DIR=$(hdiutil attach "$DMG_PATH" -nobrowse | grep -o '/Volumes/.*' | head -1)
+
+if [ -z "$MOUNT_DIR" ]; then
+  echo "  Error: Could not mount DMG"
+  exit 1
+fi
 
 echo "  Installing to Applications..."
-cp -R "$MOUNT_DIR/Adept.app" /Applications/ 2>/dev/null || {
+if [ -d /Applications/Adept.app ]; then
   echo "  Updating existing installation..."
   rm -rf /Applications/Adept.app
-  cp -R "$MOUNT_DIR/Adept.app" /Applications/
-}
+fi
+cp -R "$MOUNT_DIR/Adept.app" /Applications/
 
 echo "  Cleaning up..."
-hdiutil detach "$MOUNT_DIR" -quiet 2>/dev/null
+hdiutil detach "$MOUNT_DIR" -quiet 2>/dev/null || true
 rm -f "$DMG_PATH"
 
-# Remove quarantine flag — this is the magic line that skips Gatekeeper
-xattr -rd com.apple.quarantine /Applications/Adept.app 2>/dev/null
+# Remove quarantine flag — this skips Gatekeeper
+xattr -rd com.apple.quarantine /Applications/Adept.app 2>/dev/null || true
 
 echo ""
 echo "  ✓ Adept installed!"
